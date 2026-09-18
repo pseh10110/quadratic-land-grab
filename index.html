@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="이차함수 그래프로 격자판을 차지하는 3~4인 온라인 수학 게임">
+  <title>PARABOLA — 이차함수 땅따먹기</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111622'/%3E%3Cpath d='M5 6c2 17 7 21 11 21S25 23 27 6' fill='none' stroke='%236de5c0' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <main>
+    <section id="entry-view" class="entry-shell">
+      <div class="brand-mark" aria-hidden="true">∪</div>
+      <p class="eyebrow">ONLINE MATH BOARD GAME</p>
+      <h1>이차함수<br><span>땅따먹기</span></h1>
+      <p class="intro">함수 카드를 뽑고, 포물선이 스치는 칸을 차지하세요. 마지막에 가장 넓은 영역을 가진 플레이어가 승리합니다.</p>
+      <div class="entry-card">
+        <label for="nickname">플레이어 이름</label>
+        <input id="nickname" maxlength="12" autocomplete="nickname" placeholder="닉네임 입력">
+        <button id="create-button" class="primary">새 파티 만들기</button>
+        <div class="divider"><span>또는 초대 코드로 참가</span></div>
+        <div class="join-row">
+          <input id="invite-code" maxlength="6" autocomplete="off" placeholder="6자리 코드" aria-label="초대 코드">
+          <button id="join-button">참가</button>
+        </div>
+      </div>
+      <p class="entry-note">3–4명 · 플레이어당 5턴 · 테스트 코드 <strong>TEST01</strong></p>
+    </section>
+
+    <section id="game-view" class="game-shell hidden">
+      <header>
+        <div class="wordmark"><span class="mini-mark">∪</span> PARABOLA</div>
+        <div class="room-code">초대 코드 <strong id="room-code"></strong><button id="copy-code" title="초대 코드 복사">복사</button></div>
+      </header>
+
+      <div class="game-grid">
+        <aside class="panel players-panel">
+          <div class="panel-title"><span>플레이어</span><span id="player-count">1 / 4</span></div>
+          <div id="players" class="players"></div>
+          <div id="lobby-help" class="lobby-help">3명이 모이면 방장이 순서 정하기를 시작할 수 있어요.</div>
+          <button id="start-button" class="primary hidden">순서 정하기 시작</button>
+          <button id="order-button" class="draw-button hidden">순서 숫자 뽑기</button>
+        </aside>
+
+        <section class="board-panel">
+          <div class="board-topline">
+            <div><span id="phase-label">대기실</span><strong id="turn-label">플레이어를 기다리는 중</strong></div>
+            <div id="turn-progress">0 / 15턴</div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="board" width="760" height="760" aria-label="이차함수 게임 격자판"></canvas>
+            <div id="board-overlay" class="board-overlay">
+              <strong>파티원을 기다리고 있어요</strong>
+              <span>초대 코드를 친구에게 공유하세요.</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel action-panel">
+          <div class="panel-title"><span>이번 차례</span><span id="round-label">ROUND 1</span></div>
+          <div id="deck-area" class="deck-area hidden">
+            <p>카드 더미를 한 번 누르면 해당 종류의 카드 5장이 공개됩니다.</p>
+            <div class="deck-grid">
+              <button class="deck-button function-deck" data-category="function">
+                <span class="deck-stack"><b>ƒ</b></span>
+                <strong>함수 카드</strong><small id="function-draw-count">0 / 5</small>
+              </button>
+              <button class="deck-button x-deck" data-category="x">
+                <span class="deck-stack"><b>X</b></span>
+                <strong>x축 이동</strong><small id="x-draw-count">0 / 5</small>
+              </button>
+              <button class="deck-button y-deck" data-category="y">
+                <span class="deck-stack"><b>Y</b></span>
+                <strong>y축 이동</strong><small id="y-draw-count">0 / 5</small>
+              </button>
+            </div>
+            <div class="draw-progress"><span id="draw-progress-bar"></span></div>
+          </div>
+          <div id="hand" class="hand">
+            <div class="hand-group">
+              <small>함수 카드</small>
+              <div id="function-hand" class="hand-row"></div>
+            </div>
+            <div class="hand-group">
+              <small>x축 이동 카드</small>
+              <div id="x-hand" class="hand-row"></div>
+            </div>
+            <div class="hand-group">
+              <small>y축 이동 카드</small>
+              <div id="y-hand" class="hand-row"></div>
+            </div>
+          </div>
+          <div class="equation-box">
+            <small>최근 배치된 함수</small>
+            <strong id="equation">카드 세 장을 선택하세요</strong>
+            <span id="capture-result"></span>
+          </div>
+          <button id="play-button" class="draw-button" disabled>선택한 카드 배치</button>
+          <p id="action-hint" class="action-hint">게임 시작 시 종류별 카드 5장이 지급됩니다.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="card-reveal" class="card-reveal hidden" role="dialog" aria-modal="true" aria-labelledby="reveal-title">
+    <div class="reveal-glow"></div>
+    <p class="eyebrow">CARD PACK OPENED</p>
+    <h2 id="reveal-title">함수 카드 5장</h2>
+    <div id="reveal-cards" class="reveal-cards"></div>
+    <button id="reveal-close" class="reveal-close">손패에 넣기</button>
+  </div>
+  <div id="result-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
+    <div class="modal-card">
+      <p class="eyebrow">GAME OVER</p>
+      <h2 id="result-title">게임 종료</h2>
+      <p id="result-copy"></p>
+      <div id="final-scores"></div>
+      <button id="back-home" class="primary">처음으로</button>
+    </div>
+  </div>
+</body>
+</html>
